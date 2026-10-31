@@ -1,9 +1,10 @@
 # 🛰️ GPS XIAO ESP32-C6 Embedded Navigation System
 
-[![PlatformIO](https://shields.io)](https://platformio.org)
-[![Framework](https://shields.io)](https://github.com)
-[![MCU](https://shields.io)](https://espressif.com)
-[![License](https://shields.io)](LICENSE)
+![PlatformIO](https://shields.io)
+![Framework](https://shields.io)
+![MCU](https://shields.io)
+![License](https://shields.io)
+
 
 An advanced, object-oriented embedded firmware designed for the **Seeed Studio XIAO ESP32-C6** dev board. This system ingests raw NMEA data sentences via hardware UART, implements precise Unix/POSIX system clock synchronization through satellite UTC telemetry, and hosts a multi-page interactive UI on an I2C SSD1306 OLED display with aggressive power management and an active screen saver.
 
