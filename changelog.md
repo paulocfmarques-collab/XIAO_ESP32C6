@@ -1,0 +1,166 @@
+# Changelog — GPS XIAO ESP32-C6
+
+Histórico das alterações do projeto, organizado da mais recente para a mais antiga.
+As mudanças abaixo ainda não possuem uma versão de lançamento.
+
+## 2026-10-30
+
+### Indicadores de busca GPS
+
+- Adicionada barra animada de ida e volta abaixo do cabeçalho enquanto não há
+  posição confiável, tanto na busca quanto na página de relógio.
+- Mantida a piscada do LED D8 a cada 500 ms durante a busca e o LED aceso com
+  posição válida e pelo menos três satélites.
+- Dados de posição ou satélites com cinco segundos sem atualização deixam de
+  indicar posição confiável, retomando os indicadores de busca.
+- Preservados o desligamento manual do OLED e a proteção de tela com robôs.
+
+### Relógio interno sincronizado pelo GPS
+
+- Ajustado o relógio de sistema do ESP32 com data e hora UTC válidas e recentes
+  recebidas juntas do GPS, com nova sincronização a cada minuto.
+- Aplicado fuso local UTC-3 (UTC-2 quando a opção de horário de verão está ativa).
+- Após a primeira sincronização, a tela usa o relógio interno e continua contando
+  mesmo sem novas mensagens GPS. Ao reiniciar, aguarda nova sincronização.
+- Registradas a primeira sincronização e as falhas no monitor serial.
+
+### Liga/desliga do OLED pelo botão
+
+- Pressão de 2 segundos em D9 desliga somente o painel OLED.
+- O próximo toque liga o display sem avançar a página nem desligá-lo novamente
+  se o botão continuar pressionado.
+- Toques curtos avançam ao soltar; uma pressão longa não muda a página.
+- GPS e LED permanecem ativos, e a proteção de tela não religa o painel desligado.
+
+### Proteção de tela com robôs
+
+- Ativada após 30 segundos sem tocar no botão D9, inclusive durante a busca
+  ou ausência de dados do GPS.
+- Adicionadas carinhas de robô que piscam, olham para os lados, sorriem,
+  piscam um olho e mostram surpresa, desenhadas com Adafruit GFX e deslocamento pela tela.
+- Removido `dim(true)`, que define o contraste como zero na biblioteca SSD1306
+  e pode tornar a animação invisível; mantido o brilho normal durante a proteção.
+- O primeiro toque restaura a página selecionada sem avançar;
+  os próximos toques voltam a navegar normalmente.
+- GPS e LED continuam ativos, sem pausas bloqueantes durante a animação.
+
+### Diagramação gráfica do OLED
+
+- Adicionados ícones de satélite, relógio, localização, velocidade e alerta.
+- Organizadas as páginas com cabeçalho de estado FIX, barras de quantidade de
+  satélites e rodapé com indicador de página e instrução do botão D9.
+- Destacadas hora e velocidade em fonte maior, com coordenadas, data, altitude
+  e precisão alinhadas em áreas próprias.
+- Preservadas a orientação de 180 graus, a navegação manual e a sinalização do LED.
+
+### OLED SSD1306 0,96"
+
+- Substituído o Nokia 5110 pelo OLED SSD1306 128x64 via I2C, com SDA em D4,
+  SCL em D5, VCC em 3V3 e GND comum. D0, D1 e D2 ficam livres.
+- Trocada a dependência Adafruit PCD8544 por Adafruit SSD1306, mantendo Adafruit GFX.
+- Adicionada detecção dos endereços 0x3C e 0x3D, com mensagens de falha no
+  monitor serial sem interromper o GPS.
+- Adaptadas as dimensões da tela para 21 caracteres por linha e oito linhas,
+  preservando as páginas, o botão D9 e o LED externo D8.
+- Removido o ajuste de contraste específico do Nokia 5110.
+
+### LED externo e navegação por botão
+
+- Transferido o LED de status para D8, ativo em HIGH: pisca a cada 500 ms
+  durante a busca e permanece aceso com posição válida e pelo menos três satélites.
+- Adicionado botão entre D9 e GND, com pull-up interno e debounce de 40 ms.
+- Removida a alternância automática das telas; cada toque avança uma página.
+- Preservadas as telas de busca e alerta quando não há dados ou posição confiável.
+- Removida a pausa bloqueante do aviso serial de ausência de GPS, mantendo o
+  intervalo de um segundo entre avisos sem impedir o botão e o LED.
+
+### Substituição do display
+
+- Substituído o LCD 16x2 I2C pelo Nokia 5110 (PCD8544), com resolução de
+  84x48 pixels e comunicação SPI por software.
+- Mantidas as telas de abertura, busca do GPS, relógio, posição, movimento e
+  aviso de ausência de dados, adaptadas ao formato gráfico do novo display.
+- Configurados D4 para MOSI, D5 para SCLK, D0 para D/C, D1 para CS e D2 para
+  RESET; o GPS permanece em D6/D7.
+- Atualizado o pinout e trocada a dependência de `hd44780` por Adafruit PCD8544
+  e Adafruit GFX.
+- Corrigida a correspondência entre CLK/DIN no firmware e as ligações do módulo.
+- Ajustado o contraste inicial do Nokia 5110 para 60, valor que apresentou
+  melhor legibilidade no módulo utilizado.
+
+## 2026-10-29
+
+### Diagnostico NMEA durante a busca
+
+- Adicionado envio das sentencas NMEA brutas para o monitor serial a 115200 baud
+  enquanto o GPS nao possui posicao valida com pelo menos tres satelites.
+- Mantida a leitura e decodificacao do GPS durante a exibicao do NMEA.
+- Concluida a sentenca NMEA em andamento antes de interromper o eco quando uma
+  posicao e obtida, evitando linhas cortadas.
+- Reservado o relatorio formatado para quando houver posicao valida com pelo
+  menos tres satelites, sem misturar o relatorio com uma sentenca NMEA em andamento.
+- Retomado o eco NMEA quando o criterio de posicao confiavel deixa de ser atendido.
+
+## 2026-10-28
+
+### Interface do display aprimorada
+
+- Adicionados ícones personalizados de satélite, relógio, localização, altitude,
+  velocidade e calendário.
+- Adicionadas barras indicativas da quantidade de satélites e um caractere
+  reservado para animações, utilizando os oito espaços de caracteres
+  personalizados do LCD.
+- Adicionada tela de abertura com o nome do projeto e barra de progresso de
+  aproximadamente 2,5 segundos.
+- Adicionada tela de busca com indicador animado, quantidade de satélites e
+  tempo decorrido.
+- Adicionado alerta animado para ausência de dados do GPS.
+- Organizadas três páginas, alternadas a cada quatro segundos após obter
+  posição válida com pelo menos três satélites:
+  - **Relógio:** hora local, quantidade de satélites, barras de sinal, data local
+    e deslocamento em relação ao UTC.
+  - **Posição:** latitude e longitude com seis casas decimais, hemisférios e
+    símbolo de grau.
+  - **Movimento:** velocidade em km/h, direção cardinal, altitude em metros e
+    classificação da precisão baseada no HDOP.
+- Ocultada a direção cardinal quando a velocidade é inferior a 2 km/h.
+- Configurada atualização da interface a cada 250 ms, enviando ao LCD somente
+  as linhas alteradas.
+- Ampliada a estrutura `GpsReading` com data, fuso, altitude, velocidade, direção,
+  HDOP e estado de obtenção da posição.
+- Corrigida a data local nas mudanças de dia causadas pelo fuso brasileiro,
+  considerando transições de mês, ano e anos bissextos.
+
+### Suporte ao LCD 16x2 I2C
+
+- Criada a classe [GpsDisplay](GpsDisplay.h), com implementação em
+  [GpsDisplay.cpp](GpsDisplay.cpp).
+- Configurados os pinos **D4 para SDA** e **D5 para SCL**.
+- Integrada a biblioteca **hd44780**, de Bill Perry, com detecção automática do
+  endereço e do mapeamento do adaptador I2C.
+- Adicionadas mensagens de inicialização, espera por posição e ausência de dados.
+- Adicionado registro de falhas de inicialização do LCD na porta serial,
+  mantendo o funcionamento do GPS sem o display.
+- Integradas a inicialização e a atualização do LCD ao
+  [sketch principal](XIAO_ESP32C6.ino).
+
+### Organização orientada a objetos
+
+- Encapsuladas a comunicação UART, a leitura do GPS e a impressão dos relatórios
+  na classe [GpsManager](GpsManager.h).
+- Encapsulado o controle do LED na classe [StatusLed](StatusLed.h).
+- Simplificadas as funções `setup()` e `loop()` para coordenar os objetos.
+- Mantidas as configurações de comunicação:
+  - GPS na UART 1, a **9600 baud**, com **RX em D7** e **TX em D6**.
+  - Monitor serial a **115200 baud**.
+  - Fuso padrão **UTC-3**, com opção de **UTC-2** para horário de verão.
+- Preservados o relatório serial, o LED aceso com posição válida e pelo menos
+  três satélites, a sinalização intermitente durante a busca e o aviso de
+  ausência de dados.
+
+### Validação
+
+- Compilação realizada com sucesso para a placa **XIAO ESP32-C6**
+  (`esp32:esp32:XIAO_ESP32C6`) após a atualização visual.
+- Nenhum erro ou aviso identificado nos arquivos do projeto nessa compilação.
+- Validação visual e funcional no hardware ainda pendente.
