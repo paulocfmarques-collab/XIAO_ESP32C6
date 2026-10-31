@@ -26,14 +26,14 @@ An advanced, object-oriented embedded firmware designed for the **Seeed Studio X
 
 ### Technical Pinout Configuration
 
-| XIAO ESP32-C6 | Signal Function | Target Peripheric | Operational Metrics |
-| :--- | :---: | :---: | :---: | :--- |
-| **D4 (GPIO22)** | I2C SDA | SSD1306 OLED SDA | Hardware Inter-Integrated Circuit Serial Data Line. |
-| **D5 (GPIO23)** | I2C SCL | SSD1306 OLED SCL | Hardware Inter-Integrated Circuit Serial Clock Line. |
-| **D6 (GPIO21)** | UART1 TX | GPS Receiver RX | Hardware serial transmission line to command the receiver. |
-| **D7 (GPIO20)** | UART1 RX | GPS Receiver TX | Ingests continuous unparsed asynchronous 9600 baud NMEA sentences. |
-| **D8 (GPIO19)** | Digital Out | External Status LED | 500ms synchronous blink during search; solid HIGH on active satellite fix. |
-| **D9 (GPIO20)** | Digital In | Tactile Push Button | Debounced interrupt line for navigation, sleep, and awakening loops. |
+| Pino XIAO ESP32-C6 | Função | Periférico | Descrição Operacional |
+|-------------------|---------|------------|-----------------------|
+| D4 (GPIO22) | I²C SDA | OLED SSD1306 SDA | Linha de dados (SDA) do barramento I²C. |
+| D5 (GPIO23) | I²C SCL | OLED SSD1306 SCL | Linha de clock (SCL) do barramento I²C. |
+| D6 (GPIO21) | UART1 TX | GPS RX | Transmissão de dados seriais para o receptor GPS. |
+| D7 (GPIO20) | UART1 RX | GPS TX | Recepção das sentenças NMEA do receptor GPS (9600 baud). |
+| D8 (GPIO19) | Saída Digital | LED de Status Externo | Pisca a cada 500 ms durante a busca por satélites e permanece aceso quando há fixação GPS. |
+| D9 (GPIO18) | Entrada Digital | Botão Tátil | Entrada com debounce para navegação, despertar e controle de modos de operação. |
 
 ### ⚡ Electrical Engineering & Ballast Component Math
 
