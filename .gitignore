@@ -1,0 +1,5 @@
+.arduino/
+.tools/
+build/
+build-cli/
+output/

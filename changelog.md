@@ -3,6 +3,89 @@
 Histórico das alterações do projeto, organizado da mais recente para a mais antiga.
 As mudanças abaixo ainda não possuem uma versão de lançamento.
 
+## 2026-11-03 — Compilação e gravação independentes da IDE
+
+- Adicionados firmware.cmd e firmware.ps1 com ações preparar, compilar,
+  portas, usb e ota sem senha.
+- Ambiente ESP32 3.3.12 e bibliotecas instalados em .arduino no projeto,
+  sem depender da configuração da IDE ou de suas alterações em boards.txt.
+- Compilação usa partitions.csv local e limite explícito de 1.966.080 bytes;
+  gravações recompilam antes e param em caso de erro.
+- Binários copiados para output após compilação bem-sucedida; README
+  documenta preparação, USB inicial e atualizações OTA pela porta 3232.
+- Diretórios de ferramentas e arquivos gerados adicionados ao .gitignore.
+- Nenhuma compilação, gravação ou teste executado nesta alteração.
+
+## 2026-11-03 — Correção do limite selecionado na IDE
+
+- Consulta de metadados com Arduino CLI confirmou a opção GPS OTA, tabela
+  xiao_gps_ota e limite 1.966.080 na instalação ativa, sem compilar o sketch.
+- Documentado encerramento do serviço antigo da IDE caso persista o menu anterior.
+
+- Instalador passa a ajustar também a opção padrão da XIAO_ESP32C6 em
+  boards.txt para a tabela GPS OTA e limite de 1.966.080 bytes, com backup.
+- A seleção anteriormente salva como default passa a usar as duas aplicações
+  de 1.875 MiB após reabrir a IDE; demais esquemas permanecem disponíveis.
+- README atualizado. Compilação e testes continuam a cargo do usuário.
+
+## 2026-11-02 — Espaço de firmware para GPS, HTTPS e OTA
+
+- Adicionada tabela de partições de 4 MB com duas aplicações OTA de 1.875 MiB,
+  SPIFFS de 128 KiB e preservação da região NVS.
+- Adicionado instalador da opção GPS OTA na IDE, com limite de 1.966.080 bytes
+  e preservação das demais opções em boards.local.txt.
+- Corrigida orientação do README: o esquema padrão de 1.2 MB já não comporta
+  os 1.388.942 bytes informados; a nova tabela exige primeira gravação por USB.
+- Compilação e testes permanecem a cargo do usuário.
+- Documentada a reabertura completa da IDE caso o menu ainda exiba apenas
+  as opções anteriores após instalar a partição GPS OTA.
+
+## 2026-11-02 — Painel web de posição e previsão do tempo
+
+- Adicionados posição GPS, satélites, HDOP, cidade, estado e país à página web,
+  com atualização a cada três segundos por `/api/posicao` e link para mapa
+  somente com posição confiável; formulário Wi-Fi preservado durante a atualização.
+- Página aberta habilita consultas sem depender do OLED, com indicação de
+  falhas, perda de comunicação e consultas anteriores.
+- Adicionada tela PREVISAO DO TEMPO após LOCALIDADE, alternando três dias
+  com condição, mínima/máxima e chance de chuva; mesmos dados no painel web.
+- Previsão Open-Meteo por HTTPS nas coordenadas GPS, sem chave, com fuso
+  automático, cache de 30 minutos/5 km e intervalo mínimo de cinco minutos.
+- Consultas HTTPS serializadas em segundo plano para reduzir pico de memória.
+- README atualizado; compilação e testes não executados, conforme combinado.
+
+## 2026-11-02 — Consulta de localidade
+
+- Adicionada tela LOCALIDADE após REDE WI-FI, com cidade/localidade, estado
+  e país obtidos das coordenadas GPS via BigDataCloud, sem chave de API.
+- Consultas HTTPS em tarefa separada, somente com tela ativa, Wi-Fi, fix
+  confiável e hora sincronizada; cache de 500 m e intervalo mínimo de um minuto.
+- Indicados ausência de rede/GPS, falhas e resultados de consultas anteriores.
+- Nomes longos rolam na tela e acentos portugueses são simplificados.
+- README documenta envio das coordenadas ao provedor e dependência ArduinoJson 7.
+- Compilação e testes não executados, conforme preferência do usuário.
+
+## 2026-11-02 — Página de rede no OLED
+
+- Adicionada página REDE WI-FI à navegação pelo botão D9, com estado, SSID,
+  IP e sinal em dBm; no portal, mostra a rede de configuração e seu endereço.
+- Página acessível durante busca e ausência de dados GPS.
+- Atualizados os indicadores de páginas para incluir a rede e acomodar quatro telas.
+- Preservados proteção de tela e desligamento manual do OLED.
+- Compilação e testes ficam por conta do usuário, conforme combinado.
+
+## 2026-11-02 — OTA pela IDE do Arduino
+
+- Adicionado ArduinoOTA sem senha, com hostname `xiao-esp32c6` e descoberta
+  de porta de rede por mDNS quando conectado ao Wi-Fi cadastrado.
+- Serviço encerrado ao perder a conexão e reiniciado quando a rede retorna.
+- Registrados início, conclusão e erros de atualização no monitor serial.
+- README atualizado com gravação inicial USB, seleção da porta de rede e
+  seleção de **Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)**, que já
+  contém duas partições OTA no pacote ESP32 3.3.12 instalado, apesar do nome
+  não mencionar OTA. Documentada a necessidade de USB para trocar a tabela.
+- Compilação e testes ficam por conta do usuário; não executados nesta alteração.
+
 ## 2026-10-30
 
 ### Indicadores de busca GPS
@@ -164,3 +247,11 @@ As mudanças abaixo ainda não possuem uma versão de lançamento.
   (`esp32:esp32:XIAO_ESP32C6`) após a atualização visual.
 - Nenhum erro ou aviso identificado nos arquivos do projeto nessa compilação.
 - Validação visual e funcional no hardware ainda pendente.
+
+## 2026-11-02 — Configuração Wi-Fi
+
+- Adicionada página /config com visual do M5NanoC6 e cadastro de cinco redes.
+- Credenciais persistidas em Preferences; senhas não retornam ao navegador.
+- Rede XIAO_ESP32C6_CONFIG disponível quando nenhuma rede conecta.
+- Tentativas sem espera bloqueante, recuperação a cada 10 minutos e reinício
+  agendado após salvar, mantendo o processamento do GPS durante as tentativas.

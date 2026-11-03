@@ -1,5 +1,6 @@
 #include "GpsDisplay.h"
 #include "GpsManager.h"
+#include <WiFi.h>
 
 #include <cmath>
 #include <cstdio>
@@ -72,7 +73,7 @@ void GpsDisplay::begin()
     Serial.println(", SDA D4, SCL D5).");
 }
 
-void GpsDisplay::update(const GpsReading& reading)
+void GpsDisplay::update(const GpsReading& reading, const LocalityReading& locality, const WeatherReading& weather)
 {
     if (!ready_)
     {
@@ -110,9 +111,12 @@ void GpsDisplay::update(const GpsReading& reading)
         return;
     }
 
-    if (reading.noDataTimedOut)
+    if (reading.noDataTimedOut && currentPage(reading) != Page::Network &&
+        currentPage(reading) != Page::Locality && currentPage(reading) != Page::Weather)
     {
         drawNoData();
+        drawFooter(0, pageCount(reading));
+        display_.display();
         return;
     }
 
@@ -129,6 +133,15 @@ void GpsDisplay::update(const GpsReading& reading)
         break;
     case Page::Searching:
         drawSearching(reading, now);
+        break;
+    case Page::Network:
+        drawNetwork(reading);
+        break;
+    case Page::Locality:
+        drawLocality(reading, locality);
+        break;
+    case Page::Weather:
+        drawWeather(reading, weather);
         break;
     }
 }
@@ -170,7 +183,7 @@ void GpsDisplay::drawNoData()
     drawText(25, 19, "SEM DADOS GPS");
     display_.drawFastHLine(8, 31, 112, SSD1306_WHITE);
     drawText(16, 38, "Verifique os fios");
-    drawText(28, 50, "UART: D6/D7");
+    drawText(28, 47, "UART: D6/D7");
     display_.display();
 }
 
@@ -257,7 +270,7 @@ void GpsDisplay::drawSearching(const GpsReading& reading, unsigned long now)
     {
         drawText(0, 45, "Aguarde ao ar livre");
     }
-    drawFooter(0, reading.timeValid ? 2 : 1);
+    drawFooter(0, pageCount(reading));
     display_.display();
 }
 
@@ -304,7 +317,7 @@ void GpsDisplay::drawClock(const GpsReading& reading)
     char timezoneLine[22];
     snprintf(timezoneLine, sizeof(timezoneLine), "UTC%+03d", reading.utcOffsetHours);
     drawText(86, 45, timezoneLine);
-    drawFooter(reading.hasReliableFix ? 0 : 1, reading.hasReliableFix ? 3 : 2);
+    drawFooter(reading.hasReliableFix ? 0 : 1, pageCount(reading));
     display_.display();
 }
 
@@ -354,7 +367,7 @@ void GpsDisplay::drawPosition(const GpsReading& reading)
         snprintf(hdopLine, sizeof(hdopLine), "HDOP: --");
     }
     drawText(62, 45, hdopLine);
-    drawFooter(1, 3);
+    drawFooter(1, pageCount(reading));
     display_.display();
 }
 
@@ -400,7 +413,7 @@ void GpsDisplay::drawMotion(const GpsReading& reading)
     char precisionLine[22];
     snprintf(precisionLine, sizeof(precisionLine), "HDOP:%s", precisionLabel(reading));
     drawText(0, 45, precisionLine);
-    drawFooter(2, 3);
+    drawFooter(2, pageCount(reading));
     display_.display();
 }
 
@@ -455,28 +468,158 @@ void GpsDisplay::nextPage(const GpsReading& reading)
         return;
     }
 
-    if (!splashDone_ || reading.noDataTimedOut)
+    if (!splashDone_)
     {
         return;
     }
 
-    uint8_t pageCount = reading.hasReliableFix ? 3 : (reading.timeValid ? 2 : 1);
-    pageIndex_ = (pageIndex_ + 1) % pageCount;
+    pageIndex_ = (pageIndex_ + 1) % pageCount(reading);
+}
+
+uint8_t GpsDisplay::pageCount(const GpsReading& reading) const
+{
+    if (reading.noDataTimedOut)
+        return 4;
+    return reading.hasReliableFix ? 6 : (reading.timeValid ? 5 : 4);
 }
 
 GpsDisplay::Page GpsDisplay::currentPage(const GpsReading& reading) const
 {
+    uint8_t index = pageIndex_ % pageCount(reading);
+    if (index == pageCount(reading) - 1)
+        return Page::Weather;
+    if (index == pageCount(reading) - 2)
+        return Page::Locality;
+    if (index == pageCount(reading) - 3)
+        return Page::Network;
+    if (reading.noDataTimedOut)
+        return Page::Searching;
     if (reading.hasReliableFix)
     {
         static const Page fixPages[] = {Page::Clock, Page::Position, Page::Motion};
-        return fixPages[pageIndex_ % 3];
+        return fixPages[index];
     }
 
-    if (reading.timeValid && pageIndex_ % 2)
+    if (reading.timeValid && index == 1)
     {
         return Page::Clock;
     }
     return Page::Searching;
+}
+
+bool GpsDisplay::wantsLocality(const GpsReading& reading) const
+{
+    return ready_ && splashDone_ && !displayOff_ &&
+           millis() - lastInteractionAt_ < SCREEN_SAVER_TIMEOUT_MS &&
+           currentPage(reading) == Page::Locality;
+}
+
+void GpsDisplay::drawLocality(const GpsReading& reading, const LocalityReading& locality)
+{
+    drawText(0, 1, "LOCALIDADE");
+    display_.drawFastHLine(0, 12, SCREEN_WIDTH, SSD1306_WHITE);
+    const bool wifi = WiFi.status() == WL_CONNECTED;
+    const bool fix = reading.hasReliableFix && reading.locationValid;
+    const bool moved = locality.available && fix &&
+        TinyGPSPlus::distanceBetween(reading.latitude, reading.longitude,
+                                    locality.latitude, locality.longitude) >= 500;
+    const char* status = locality.busy ? "Consultando..." :
+                         !wifi ? "Sem Wi-Fi" : !fix ? "Aguardando GPS" :
+                         locality.failed ? "Falha; tenta em 1min" :
+                         moved ? "Aguarde nova consulta" :
+                         !reading.timeValid ? "Aguardando hora GPS" :
+                         locality.available ? "Localidade da posicao" : "Aguardando consulta";
+    drawText(0, 16, status);
+    if (locality.available)
+    {
+        // The built-in OLED font is ASCII; normalize common Portuguese accents.
+        auto line = [this](uint8_t y, const char* text) {
+            String value(text);
+            const char* accented[] = {"á", "à", "â", "ã", "ä", "Á", "À", "Â", "Ã", "Ä",
+                                     "é", "è", "ê", "ë", "É", "È", "Ê", "Ë",
+                                     "í", "ì", "î", "ï", "Í", "Ì", "Î", "Ï",
+                                     "ó", "ò", "ô", "õ", "ö", "Ó", "Ò", "Ô", "Õ", "Ö",
+                                     "ú", "ù", "û", "ü", "Ú", "Ù", "Û", "Ü", "ç", "Ç", "ñ", "Ñ"};
+            const char* plain = "aaaaaAAAAAeeeeEEEEiiiiIIIIoooooOOOOOuuuuUUUUcCnN";
+            for (size_t i = 0; i < sizeof(accented) / sizeof(accented[0]); ++i)
+                value.replace(accented[i], String(plain[i]));
+            // Scroll long place names so the whole name can be read.
+            unsigned offset = value.length() > 21 ? (millis() / 700) % (value.length() + 5) : 0;
+            if (offset)
+                value = (value + "     " + value).substring(offset);
+            drawText(0, y, value.c_str());
+        };
+        line(26, locality.city[0] ? locality.city : "Local nao identificado");
+        line(36, locality.region);
+        if (!wifi || !fix || moved || locality.failed || locality.busy)
+            drawText(0, 46, "Consulta anterior");
+        else
+            line(46, locality.country);
+    }
+    else
+    {
+        drawText(0, 31, "Requer GPS e internet");
+        drawText(0, 46, "Fonte: BigDataCloud");
+    }
+    drawFooter(pageCount(reading) - 2, pageCount(reading));
+    display_.display();
+}
+
+bool GpsDisplay::wantsWeather(const GpsReading& reading) const
+{
+    return ready_ && splashDone_ && !displayOff_ &&
+           millis() - lastInteractionAt_ < SCREEN_SAVER_TIMEOUT_MS &&
+           currentPage(reading) == Page::Weather;
+}
+
+void GpsDisplay::drawWeather(const GpsReading& reading, const WeatherReading& weather)
+{
+    drawText(0, 1, WeatherService::previous(reading, weather) ? "TEMPO (ANTERIOR)" : "PREVISAO DO TEMPO");
+    display_.drawFastHLine(0, 12, SCREEN_WIDTH, SSD1306_WHITE);
+    if (weather.available)
+    {
+        unsigned index = (millis() / 5000) % 3;
+        const ForecastDay& day = weather.days[index];
+        char text[32];
+        snprintf(text, sizeof(text), "%c%c/%c%c  Dia %u/3", day.date[8], day.date[9], day.date[5], day.date[6], index + 1);
+        drawText(0, 17, text);
+        drawText(0, 27, WeatherService::description(day.code));
+        snprintf(text, sizeof(text), "Min %.0f Max %.0f C", day.minimum, day.maximum);
+        drawText(0, 37, text);
+        if (day.rain >= 0) snprintf(text, sizeof(text), "Chuva: %d%%", day.rain);
+        else snprintf(text, sizeof(text), "Chuva: --");
+        drawText(0, 47, text);
+    }
+    else
+    {
+        drawText(0, 20, WeatherService::status(reading, weather).c_str());
+        drawText(0, 33, "Requer GPS e internet");
+        drawText(0, 46, "Fonte: Open-Meteo");
+    }
+    drawFooter(pageCount(reading) - 1, pageCount(reading));
+    display_.display();
+}
+
+void GpsDisplay::drawNetwork(const GpsReading& reading)
+{
+    bool connected = WiFi.status() == WL_CONNECTED;
+    bool portal = (WiFi.getMode() & WIFI_AP) && WiFi.softAPIP() != IPAddress(0, 0, 0, 0);
+    drawText(0, 1, "REDE WI-FI");
+    display_.drawFastHLine(0, 12, SCREEN_WIDTH, SSD1306_WHITE);
+    drawText(0, 17, connected ? "Conectado" : (portal ? "Portal de config." : "Conectando..."));
+    String ssid = connected ? WiFi.SSID() : (portal ? "XIAO_ESP32C6_CONFIG" : WiFi.SSID());
+    drawText(0, 27, ssid.isEmpty() ? "Aguardando rede" : ssid.c_str());
+    String ip = connected ? WiFi.localIP().toString() :
+                (portal ? WiFi.softAPIP().toString() : "--");
+    drawText(0, 37, ("IP: " + ip).c_str());
+    char line[24];
+    if (connected)
+        snprintf(line, sizeof(line), "Sinal: %ld dBm", static_cast<long>(WiFi.RSSI()));
+    else
+        snprintf(line, sizeof(line), "%s", portal ? "Abra /config" : "Tentando redes salvas");
+    drawText(0, 47, line);
+    drawFooter(pageCount(reading) - 3, pageCount(reading));
+    display_.display();
 }
 
 void GpsDisplay::drawHeader(const char* title, const uint8_t* bitmap, const GpsReading& reading)
@@ -519,7 +662,7 @@ void GpsDisplay::drawFooter(uint8_t page, uint8_t count)
     drawText(0, 57, count > 1 ? "D9: proxima" : "Aguardando GPS");
     for (uint8_t index = 0; index < count; ++index)
     {
-        uint8_t x = 104 + index * 9;
+        uint8_t x = 80 + index * 8;
         if (index == page)
         {
             display_.fillCircle(x, 60, 2, SSD1306_WHITE);

@@ -3,6 +3,8 @@
 #include <Arduino.h>
 #include <Adafruit_SSD1306.h>
 #include <Wire.h>
+#include "LocalityService.h"
+#include "WeatherService.h"
 
 struct GpsReading;
 
@@ -12,7 +14,9 @@ class GpsDisplay
     GpsDisplay(uint8_t sdaPin, uint8_t sclPin);
 
     void begin();
-    void update(const GpsReading& reading);
+    void update(const GpsReading& reading, const LocalityReading& locality, const WeatherReading& weather);
+    bool wantsLocality(const GpsReading& reading) const;
+    bool wantsWeather(const GpsReading& reading) const;
     void nextPage(const GpsReading& reading);
     void turnOff();
     void wake();
@@ -24,7 +28,10 @@ class GpsDisplay
         Clock,
         Position,
         Motion,
-        Searching
+        Searching,
+        Network,
+        Locality,
+        Weather
     };
 
     bool drawSplash(unsigned long now);
@@ -34,6 +41,10 @@ class GpsDisplay
     void drawClock(const GpsReading& reading);
     void drawPosition(const GpsReading& reading);
     void drawMotion(const GpsReading& reading);
+    void drawNetwork(const GpsReading& reading);
+    void drawLocality(const GpsReading& reading, const LocalityReading& locality);
+    void drawWeather(const GpsReading& reading, const WeatherReading& weather);
+    uint8_t pageCount(const GpsReading& reading) const;
     Page currentPage(const GpsReading& reading) const;
     void drawHeader(const char* title, const uint8_t* bitmap, const GpsReading& reading);
     void drawFooter(uint8_t page, uint8_t count);

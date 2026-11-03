@@ -2,6 +2,7 @@
 #include "GpsManager.h"
 #include "PageButton.h"
 #include "StatusLed.h"
+#include "WifiManager.h"
 
 namespace
 {
@@ -17,6 +18,9 @@ GpsManager gpsManager(GPS_RX_PIN, GPS_TX_PIN, DAYLIGHT_SAVING_TIME);
 StatusLed statusLed(STATUS_LED_PIN);
 PageButton pageButton(PAGE_BUTTON_PIN);
 GpsDisplay gpsDisplay(OLED_SDA_PIN, OLED_SCL_PIN);
+WifiManager wifiManager;
+LocalityService localityService;
+WeatherService weatherService;
 unsigned long lastNoDataReportAt = 0;
 bool wakingPress = false;
 } // namespace
@@ -31,11 +35,15 @@ void setup()
 
     Serial.println("GPS iniciado...");
     gpsDisplay.begin();
+    wifiManager.begin();
+    localityService.begin();
+    weatherService.begin();
 }
 
 void loop()
 {
     gpsManager.update();
+    wifiManager.update();
     statusLed.update(gpsManager.hasReliableFix());
     gpsManager.printReportIfDue();
     GpsReading reading = gpsManager.getReading();
@@ -56,7 +64,14 @@ void loop()
     {
         gpsDisplay.nextPage(reading);
     }
-    gpsDisplay.update(reading);
+    localityService.update(reading, !weatherService.reading().busy &&
+                           (gpsDisplay.wantsLocality(reading) || wifiManager.wantsLocality()));
+    // Serialize HTTPS requests to limit peak RAM usage on the ESP32-C6.
+    weatherService.update(reading, !localityService.reading().busy &&
+                          (gpsDisplay.wantsWeather(reading) || wifiManager.wantsLocality()));
+    wifiManager.setPosition(reading, localityService.reading());
+    wifiManager.setWeather(weatherService.reading());
+    gpsDisplay.update(reading, localityService.reading(), weatherService.reading());
 
     unsigned long now = millis();
     if (reading.noDataTimedOut && now - lastNoDataReportAt >= 1000)
