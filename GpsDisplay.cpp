@@ -451,6 +451,39 @@ bool GpsDisplay::isOff() const
     return displayOff_;
 }
 
+const char* GpsDisplay::pageName(const GpsReading& reading) const
+{
+    switch (currentPage(reading))
+    {
+    case Page::Clock: return "relogio";
+    case Page::Position: return "posicao";
+    case Page::Motion: return "movimento";
+    case Page::Searching: return reading.noDataTimedOut ? "sem_dados" : "busca";
+    case Page::Network: return "rede";
+    case Page::Locality: return "localidade";
+    case Page::Weather: return "tempo";
+    }
+    return "desconhecida";
+}
+
+bool GpsDisplay::selectPage(const String& name, const GpsReading& reading)
+{
+    if (!ready_) return false;
+    uint8_t previous = pageIndex_;
+    for (uint8_t index = 0; index < pageCount(reading); ++index)
+    {
+        pageIndex_ = index;
+        if (name == pageName(reading))
+        {
+            splashDone_ = true;
+            wake();
+            return true;
+        }
+    }
+    pageIndex_ = previous;
+    return false;
+}
+
 void GpsDisplay::nextPage(const GpsReading& reading)
 {
     if (!ready_ || displayOff_)

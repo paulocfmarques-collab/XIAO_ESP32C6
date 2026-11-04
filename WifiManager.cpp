@@ -148,43 +148,73 @@ void WifiManager::showPage()
     String html =
         "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-        "<title>XIAO ESP32C6 - Configuracao</title><style>"
-        "body{font-family:Arial;margin:20px;background:#1a1a1a;color:#fff;text-align:center}"
-        ".c{background:#2d2d2d;max-width:340px;margin:auto;padding:20px;border-radius:12px}"
-        "input{width:100%;padding:9px;margin:5px 0;box-sizing:border-box;border-radius:6px;"
-        "border:1px solid #444;background:#222;color:#fff}"
-        "input[type=submit]{background:#ff5e00;border:none;font-weight:bold;cursor:pointer}"
-        "a{color:#ff8b47}dl{text-align:left;overflow-wrap:anywhere}dt{color:#bbb;margin-top:8px}"
-        "dd{margin:2px 0 0}section{border-bottom:1px solid #555;padding-bottom:16px}"
-        "</style></head><body><div class='c'><h2>XIAO ESP32C6</h2>"
-        "<section aria-labelledby='position-title'><h3 id='position-title'>Posição e localidade</h3>"
+        R"HTML(<title>XIAO ESP32C6</title><style>
+        *{box-sizing:border-box}
+        :root{color-scheme:dark;font:16px/1.5 system-ui,sans-serif;color:#f4f6fa;background:#101318}
+        body{margin:0}
+        main{width:min(100%,76rem);margin:auto;padding:clamp(1rem,4vw,3rem)}
+        header{margin-bottom:1.5rem}
+        h1{margin:0;font-size:clamp(1.6rem,4vw,2.5rem)}
+        h2{margin:0;font-size:1.25rem}
+        p{margin:.65rem 0}
+        .muted,small,dt{color:#b6bfcd}
+        .dashboard,.networks,#forecast{display:grid;gap:1rem}
+        .dashboard{grid-template-columns:minmax(0,2fr) minmax(0,3fr);margin-bottom:1rem}
+        .panel{background:#191e26;border:1px solid #343d4b;border-radius:1rem;padding:clamp(1rem,3vw,1.75rem);overflow-wrap:anywhere}
+        dl{display:grid;gap:1rem;margin:1.25rem 0}
+        dd{margin:.2rem 0 0;font-weight:600}
+        #forecast{grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin:1rem 0}
+        .day,fieldset{background:#12161d;border:1px solid #343d4b;border-radius:.75rem;padding:1rem}
+        .day span{display:block;margin-top:.5rem}
+        .networks{grid-template-columns:repeat(2,minmax(0,1fr));margin:1.25rem 0}
+        fieldset{min-width:0;margin:0}
+        legend{padding:0 .4rem;font-weight:600}
+        label{display:block;margin:.4rem 0;color:#d5dce7}
+        input{width:100%;min-width:0;padding:.7rem .8rem;border-radius:.5rem;
+          border:1px solid #495467;background:#191e26;color:inherit;font:inherit}
+        label+input+label{margin-top:.85rem}
+        button,.map-link{display:inline-block;padding:.65rem 1rem;border-radius:.5rem;font:inherit;font-weight:650}
+        button{background:#ffad79;color:#23140a;border:0;cursor:pointer}
+        a{color:#ffad79}
+        .map-link{border:1px solid #495467;text-decoration:none}
+        [hidden]{display:none!important}
+        :focus-visible{outline:2px solid #ffad79;outline-offset:3px}
+        @media(max-width:60rem){.dashboard{grid-template-columns:1fr}}
+        @media(max-width:39rem){.networks,#forecast{grid-template-columns:1fr}}
+        </style></head><body><main>
+        <header><h1>XIAO ESP32C6</h1><p class='muted'>Painel de posição e configuração</p></header>
+        <div class='dashboard'>
+        <section class='panel' aria-labelledby='position-title'><h2 id='position-title'>Posição e localidade</h2>)HTML"
         "<p id='position-status' role='status'>Carregando posição...</p>"
         "<dl><dt>Latitude / Longitude</dt><dd id='coordinates'>--</dd>"
         "<dt>Satélites / Precisão HDOP</dt><dd id='precision'>--</dd>"
         "<dt>Localidade</dt><dd id='place'>--</dd></dl>"
         "<p id='locality-status'>Aguardando consulta</p>"
-        "<a id='map' target='_blank' rel='noopener noreferrer' hidden>Ver no mapa</a>"
+        "<a id='map' class='map-link' target='_blank' rel='noopener noreferrer' hidden>Ver no mapa</a>"
         "<p><small>Localidade: BigDataCloud. A consulta envia as coordenadas GPS ao serviço.</small></p>"
-        "</section><section><h3>Previsão do tempo na posição GPS</h3>"
+        "</section><section class='panel' aria-labelledby='weather-title'><h2 id='weather-title'>Previsão do tempo</h2>"
         "<p id='weather-status' role='status'>Carregando previsão...</p>"
         "<div id='forecast'></div>"
+        "<small id='forecast-age' hidden></small>"
         "<p><small>Temperaturas em °C; chance de chuva diária. Datas no fuso da posição.</small></p>"
         "<p><a href='https://open-meteo.com/' target='_blank' rel='noopener noreferrer'>"
-        "Previsão: Open-Meteo</a></p></section><h3>Configuração Wi-Fi</h3>"
-        "<p>Ate 5 redes (SSID vazio = remover; senha vazia mantem a atual para o mesmo SSID).</p>"
-        "<form action='/salvar' method='POST'>";
+        "Previsão: Open-Meteo</a></p></section></div>"
+        "<section class='panel' aria-labelledby='wifi-title'><h2 id='wifi-title'>Configuração Wi-Fi</h2>"
+        "<p class='muted'>Cadastre até cinco redes. Apague o nome para remover uma rede. "
+        "Deixe a senha em branco para manter a senha do mesmo SSID.</p>"
+        "<form action='/salvar' method='POST'><div class='networks'>";
     for (uint8_t i = 0; i < 5; ++i)
     {
         String n(i);
-        html += "<b>Rede " + String(i + 1) + "</b><input aria-label='SSID da rede " +
-                String(i + 1) + "' name='ssid" + n + "' maxlength='32' value='" +
+        html += "<fieldset><legend>Rede " + String(i + 1) +
+                "</legend><label for='ssid" + n + "'>Nome da rede (SSID)</label>"
+                "<input id='ssid" + n + "' name='ssid" + n + "' maxlength='32' value='" +
                 escapeHtml(ssids_[i]) +
-                "' placeholder='SSID'>"
-                "<input aria-label='Senha da rede " +
-                String(i + 1) + "' type='password' name='senha" + n +
-                "' maxlength='63' autocomplete='new-password' placeholder='Senha'>";
+                "'><label for='senha" + n + "'>Senha</label>"
+                "<input id='senha" + n + "' type='password' name='senha" + n +
+                "' maxlength='63' autocomplete='new-password'></fieldset>";
     }
-    html += R"HTML(<input type='submit' value='Salvar e Reiniciar'></form></div>
+    html += R"HTML(</div><button type='submit'>Salvar e reiniciar</button></form></section></main>
 <script>
 const el=id=>document.getElementById(id);
 async function refreshPosition(){
@@ -203,17 +233,24 @@ async function refreshPosition(){
     const weather=data.tempo;
     el('weather-status').textContent=weather.estado_consulta;
     el('forecast').replaceChildren();
+    const age=el('forecast-age');
+    age.hidden=!weather.disponivel;
     if(weather.disponivel){
       for(const day of weather.dias){
-        const row=document.createElement('p');
-        const date=day.data.split('-').reverse().join('/');
-        row.textContent=date+' · '+day.condicao+' · '+day.minima.toFixed(0)+' a '+
-          day.maxima.toFixed(0)+' °C · Chuva: '+(day.chuva===null?'--':day.chuva+'%');
-        el('forecast').appendChild(row);
+        const card=document.createElement('article');
+        card.className='day';
+        const date=document.createElement('strong');
+        date.textContent=day.data.split('-').reverse().join('/');
+        card.appendChild(date);
+        for(const value of [day.condicao, day.minima.toFixed(0)+' a '+day.maxima.toFixed(0)+' °C',
+          'Chuva: '+(day.chuva===null?'--':day.chuva+'%')]){
+          const line=document.createElement('span');
+          line.textContent=value;
+          card.appendChild(line);
+        }
+        el('forecast').appendChild(card);
       }
-      const age=document.createElement('small');
       age.textContent='Consulta recebida há '+Math.floor(weather.idade_s/60)+' min';
-      el('forecast').appendChild(age);
     }
     const map=el('map');map.hidden=!valid;
     if(valid)map.href='https://www.openstreetmap.org/?mlat='+gps.latitude+'&mlon='+gps.longitude+

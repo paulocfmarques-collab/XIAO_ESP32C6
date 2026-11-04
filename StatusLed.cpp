@@ -14,6 +14,13 @@ void StatusLed::begin()
 
 void StatusLed::update(bool hasReliableFix)
 {
+    if (mode_ != Mode::Auto)
+    {
+        state_ = mode_ == Mode::On;
+        digitalWrite(pin_, state_ ? HIGH : LOW);
+        lastBlinkAt_ = millis();
+        return;
+    }
     if (hasReliableFix)
     {
         state_ = true;
@@ -28,4 +35,11 @@ void StatusLed::update(bool hasReliableFix)
         state_ = !state_;
         digitalWrite(pin_, state_);
     }
+}
+
+const char* StatusLed::modeName() const
+{
+    if (mode_ == Mode::On) return "ligado";
+    if (mode_ == Mode::Off) return "desligado";
+    return "automatico";
 }

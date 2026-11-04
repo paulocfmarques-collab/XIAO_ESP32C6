@@ -3,6 +3,36 @@
 Histórico das alterações do projeto, organizado da mais recente para a mais antiga.
 As mudanças abaixo ainda não possuem uma versão de lançamento.
 
+## 2026-11-04 — Comandos UDP em minúsculas
+
+- Adicionado servidor UDP na porta 4210, disponível por Wi-Fi ou portal,
+  com recuperação após mudança de IP e uma requisição atendida por loop.
+- Adicionados 34 comandos em minúsculas com respostas JSON para consultas
+  de GPS, rede, localidade, previsão, sistema, OTA, OLED, LED e reinício.
+- OLED permite seleção remota de páginas disponíveis e LED possui modos
+  ligado, desligado e automático. Reinício é agendado após a resposta.
+- Solicitações de localidade e previsão usam os caches e intervalos existentes.
+- Datagrama limitado a 63 bytes, com rejeição de comandos inválidos e NUL.
+- README e UDP.md documentam comandos, respostas e exemplos.
+- Compilação e testes na placa permanecem a cargo do usuário.
+
+## 2026-11-03 — Migração para PlatformIO
+
+- Adicionado platformio.ini com pioarduino 55.03.312-1 / Arduino ESP32 3.3.12,
+  bibliotecas fixadas e ambientes de gravação USB e OTA sem senha.
+- Preservados os fontes na raiz, CPU de 160 MHz, USB CDC e partitions.csv
+  com duas aplicações OTA de 1.875 MiB.
+- firmware.ps1 e os atalhos firmware.cmd/Makefile passam a usar PlatformIO,
+  mantendo etapas, saída detalhada, validação de tamanho e exportação para output.
+- Binários exportados agora usam os nomes firmware.bin, bootloader.bin e
+  partitions.bin. README atualizado e .pio ignorado pelo Git.
+
+## 2026-11-03 — Layout do painel web
+
+- Painel mais largo com posição e previsão lado a lado em telas grandes,
+  cartões por dia e formulário Wi-Fi agrupado por rede.
+- Layout em coluna no celular, com campos rotulados e mais espaçamento.
+
 ## 2026-11-03 — Compilação e gravação independentes da IDE
 
 - Adicionados firmware.cmd e firmware.ps1 com ações preparar, compilar,

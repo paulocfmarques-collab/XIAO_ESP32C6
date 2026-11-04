@@ -14,6 +14,8 @@ class WifiManager
     void setPosition(const GpsReading& gps, const LocalityReading& locality);
     void setWeather(const WeatherReading& weather) { weather_ = weather; }
     bool wantsLocality() const;
+    String savedSsid(uint8_t index) const { return index < 5 ? ssids_[index] : String(); }
+    bool otaAvailable() const { return otaStarted_; }
 
   private:
     void showPage();

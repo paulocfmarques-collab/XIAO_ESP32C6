@@ -1,12 +1,45 @@
 # 🛰️ GPS XIAO ESP32-C6 Embedded Navigation System
 
-## Compilar e gravar sem a IDE — fluxo recomendado
+## Controle e consultas UDP
 
-Use `firmware.cmd` ou `make` na pasta do projeto. O fluxo usa Arduino CLI independente,
-com pacote ESP32 e bibliotecas em `.arduino/`, sem carregar configurações da
-IDE nem alterar `boards.txt` da instalação global. A tabela OTA vem de
-`partitions.csv` e o limite de **1.966.080 bytes** é passado explicitamente
-na compilação. Não é preciso executar `instalar-particao-ota.ps1` nesse fluxo.
+O firmware atende comandos de texto em minúsculas na porta UDP **4210**,
+na rede Wi-Fi e no portal de configuração. Envie `ajuda` para obter a lista
+completa, com respostas JSON. Inclui GPS, posição, relógio, satélites, movimento,
+precisão, Wi-Fi, redes cadastradas, localidade, previsão, sistema, OTA,
+controle do OLED, LED e reinício. O serviço inicia automaticamente no loop.
+
+A lista completa e o exemplo de envio pelo PowerShell estão em [UDP.md](UDP.md).
+Os controles são acessíveis aos dispositivos com acesso à porta UDP da placa.
+Compilação e testes de comunicação ficam por conta do usuário.
+
+## Compilar e gravar com PlatformIO — fluxo recomendado
+
+Abra esta pasta pela extensão **PlatformIO IDE** no VS Code. O
+[`platformio.ini`](platformio.ini) usa pioarduino **55.03.312-1**, com Arduino
+ESP32 **3.3.12**, placa `seeed_xiao_esp32c6`, CPU de 160 MHz, flash de 4 MB e
+USB CDC ativada pela definição da placa. A tabela OTA vem de `partitions.csv`,
+com limite de **1.966.080 bytes** por aplicação. Não é preciso executar
+`instalar-particao-ota.ps1` nem usar Arduino CLI.
+
+No terminal do PlatformIO, dentro da pasta do projeto:
+
+```sh
+pio run
+pio run -v
+pio run -j 4
+pio device list
+pio run -e seeed_xiao_esp32c6 -t upload --upload-port COM5
+pio run -e ota -t upload --upload-port 192.168.1.50
+pio device monitor --port COM5
+```
+
+O primeiro build instala automaticamente a plataforma e as bibliotecas.
+`pio run` mostra os arquivos compilados; `-v` mostra também os comandos completos.
+Os ambientes USB e OTA usam a mesma configuração de firmware e partições.
+Os fontes permanecem na raiz para manter compatibilidade com a IDE Arduino;
+o filtro de fontes impede que arquivos de builds antigos sejam compilados.
+
+Os atalhos `firmware.cmd` e `make` continuam disponíveis e agora usam PlatformIO:
 
 Com GNU Make instalado, os alvos equivalentes são:
 
@@ -20,13 +53,10 @@ make ota PORT=192.168.1.50
 
 `JOBS` controla o número de tarefas paralelas da compilação (padrão: `2`),
 por exemplo `make compilar JOBS=4`. `make` apenas encaminha as ações para
-`firmware.ps1`; o Arduino CLI continua sendo localizado em `.tools`, no `PATH`
-ou pela variável `ARDUINO_CLI`.
-
-O executável Arduino CLI pode ficar em `.tools/arduino-cli.exe`, no PATH ou
-ser informado com `-Cli`. A cópia em `.tools/` é local e não depende de abrir
-a IDE. Para obtê-lo novamente, use o
-[download oficial do Arduino CLI](https://docs.arduino.cc/arduino-cli/installation/).
+`firmware.ps1`. O script procura PlatformIO no `PATH` ou em
+`%USERPROFILE%\.platformio\penv\Scripts\platformio.exe`, instalado pela extensão.
+Para outro caminho, use `-Pio` ou a variável `PLATFORMIO_EXE` (substituem `-Cli`
+e `ARDUINO_CLI` do fluxo anterior).
 
 No PowerShell, dentro da pasta do projeto:
 
@@ -37,13 +67,34 @@ No PowerShell, dentro da pasta do projeto:
 .\firmware.cmd usb -Porta COM5
 ```
 
-Substitua `COM5` pela porta da placa. `preparar` baixa o ESP32 **3.3.12**,
+Substitua `COM5` pela porta da placa. `preparar` instala a plataforma e
 ArduinoJson **7.4.2**, TinyGPSPlus **1.0.3**, Adafruit SSD1306 **2.5.9** e
 Adafruit GFX Library **1.11.9**, além das dependências dessas bibliotecas.
 É necessário acesso à internet na preparação. As ferramentas e bibliotecas
-ficam isoladas no projeto e podem ocupar bastante espaço em disco.
+ficam em `.pio/` e no cache do PlatformIO e podem ocupar bastante espaço em disco.
 As dependências transitivas seguem a resolução do gerenciador de bibliotecas;
 não é uma distribuição totalmente congelada de todas as ferramentas.
+
+Se a resolução parar com `MissingPackageManifestError` mencionando
+`package.json`, verifique se algum pacote em
+`%USERPROFILE%\.platformio\packages` ficou incompleto, sem esse manifesto.
+Não é um erro de npm e não se deve criar um `package.json` manualmente.
+Feche as tarefas de build/instalação e mova somente o pacote afetado para
+fora da pasta `packages` (por exemplo, para `%USERPROFILE%\.platformio\recovery`).
+Depois execute `pio pkg install -e seeed_xiao_esp32c6` e `pio run`.
+Isso reinstala o pacote usando a versão definida pela plataforma, sem apagar
+todos os pacotes nem alterar `platformio.ini`. Preserve a cópia de recuperação
+até confirmar que a compilação terminou com sucesso.
+
+Se aparecer `Failed to obtain certifi path ... timed out after 5 seconds`,
+teste `& "$env:USERPROFILE\.platformio\penv\Scripts\python.exe" -c "import certifi; print(certifi.where())"`
+no PowerShell. Se o comando funcionar, mas levar mais de 5 segundos, o limite
+interno do pioarduino pode ser insuficiente. Como ajuste local, aumente somente
+o `timeout=5` de `_setup_certifi_env` para `timeout=30` em
+`%USERPROFILE%\.platformio\platforms\espressif32\builder\penv_setup.py`.
+Esse ajuste não desativa a validação HTTPS e pode ser sobrescrito ao reinstalar
+ou atualizar a plataforma. Se o comando falhar, investigue o erro do Python
+antes de alterar o prazo; aumentar o limite não corrige um ambiente quebrado.
 
 O comando `usb` recompila antes de gravar e instala bootloader, tabela de
 partições e aplicação. Use-o uma vez para migrar da tabela antiga para as
@@ -58,13 +109,15 @@ alcançar a placa na rede. O OTA usa a porta 3232 e não instala uma nova tabela
 de partições. Tanto `usb` quanto `ota` compilam primeiro e param se a compilação
 falhar. Feche o monitor serial antes de gravar por USB.
 
-Os arquivos são gerados em `build-cli/` e copiados para `output/` após sucesso.
-`XIAO_ESP32C6.ino.bin` é a aplicação; os arquivos de bootloader e partições
+Os arquivos são gerados em `.pio/build/seeed_xiao_esp32c6/` ou `.pio/build/ota/`.
+Os atalhos `firmware.cmd` e `make` também os copiam para `output/` após sucesso.
+`firmware.bin` é a aplicação; `bootloader.bin`, `partitions.bin` e `partitions.csv`
 também ficam em `output/`. O script verifica o tamanho do binário gerado.
-Esses diretórios, `.arduino/` e `.tools/` ficam fora do controle de versão.
+Esses diretórios ficam fora do controle de versão. Os diretórios antigos
+`.arduino/`, `.tools/` e `build-cli/` não são usados pelo PlatformIO.
 
-Compilação, gravação e testes ficam por conta do usuário. Criar estes scripts
-não significa que um novo firmware binário já foi compilado ou validado.
+A validação de compilação não substitui o teste na placa. A gravação USB/OTA e
+os testes de GPS, OLED, botão, Wi-Fi e painel web devem ser feitos no hardware.
 
 [![PlatformIO](https://img.shields.io/badge/PlatformIO-Embedded-orange?logo=platformio)](https://platformio.org/)
 [![Framework](https://img.shields.io/badge/Framework-Arduino-00979D?logo=arduino)](https://www.arduino.cc/)
@@ -276,34 +329,26 @@ graph TD
 ### Project Directory Layout
 
 ```bash
-├── include/
-│   ├── GpsDisplay.h    # OLED visualization engine definitions
-│   ├── GpsManager.h    # TinyGPS++ parsing wrapper & POSIX clock alignment
-│   ├── PageButton.h    # Debounced state tracking for tactile inputs
-│   └── StatusLed.h     # High-efficiency status LED controller
-└── src/
-    ├── GpsDisplay.cpp  # Implementation of UI frames, screensaver, & graphics
-    ├── GpsManager.cpp  # UTC adjustments, zone translation, & text reporting
-    ├── StatusLed.cpp   # Implementation of LED blink algorithms
-    └── main.ino        # Principal system setup and cyclical loop execution
+├── platformio.ini
+├── partitions.csv
+├── XIAO_ESP32C6.ino
+├── GpsDisplay.cpp / GpsDisplay.h
+├── GpsManager.cpp / GpsManager.h
+├── LocalityService.cpp / LocalityService.h
+├── WeatherService.cpp / WeatherService.h
+├── WifiManager.cpp / WifiManager.h
+├── StatusLed.cpp / StatusLed.h
+└── PageButton.h
 ```
 
 ### Compilation Quickstart (PlatformIO)
 
-Add this baseline environments file configuration to your local `platformio.ini` project root file before initiating verification compilations:
+The project already includes `platformio.ini`. Open this folder in PlatformIO
+IDE or run these commands in its terminal:
 
-```ini
-[env:seeed_xiao_esp32c6]
-platform = espressif32
-board = seeed_xiao_esp32c6
-framework = arduino
-monitor_speed = 115200
-board_build.partitions = partitions.csv
-lib_deps =
-    bblanchon/ArduinoJson @ ^7
-    mikalhart/TinyGPSPlus @ ^1.0.3
-    adafruit/Adafruit SSD1306 @ ^2.5.9
-    adafruit/Adafruit GFX Library @ ^1.11.9
+```sh
+pio run
+pio run -e seeed_xiao_esp32c6 -t upload --upload-port COM5
 ```
 
 ---
@@ -315,6 +360,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Configuração de Wi-Fi
 
 ### Posição, localidade e previsão na página web
+
+Em telas largas, posição e previsão ficam lado a lado, com um cartão para
+cada dia. Os campos de Wi-Fi ficam agrupados por rede em uma seção própria.
+No celular, as seções e os campos se organizam em uma coluna.
 
 As páginas `/` e `/config` mostram posição GPS, número de satélites, precisão
 HDOP e localidade (cidade, estado e país), além do formulário Wi-Fi.

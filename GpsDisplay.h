@@ -21,6 +21,9 @@ class GpsDisplay
     void turnOff();
     void wake();
     bool isOff() const;
+    bool isReady() const { return ready_; }
+    const char* pageName(const GpsReading& reading) const;
+    bool selectPage(const String& name, const GpsReading& reading);
 
   private:
     enum class Page : uint8_t
