@@ -102,6 +102,7 @@ void WifiManager::update()
             ArduinoOTA.onError([](ota_error_t error) {
                 Serial.printf("[OTA] Falha na atualizacao: %u\n", static_cast<unsigned>(error));
             });
+            WiFi.setSleep(false); // economia de energia do Wi-Fi atrasa muito o OTA
             ArduinoOTA.begin();
             otaStarted_ = true;
             Serial.println("[OTA] Disponivel na IDE Arduino: xiao-esp32c6 (sem senha).");

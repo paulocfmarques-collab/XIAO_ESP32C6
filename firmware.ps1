@@ -3,7 +3,7 @@ param(
     [string]$Acao = 'ajuda',
     [string]$Porta,
     [string]$Pio = $env:PLATFORMIO_EXE,
-    [ValidateRange(1, 32)][int]$Jobs = 2
+    [ValidateRange(1, 32)][int]$Jobs = 1
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = $PSScriptRoot

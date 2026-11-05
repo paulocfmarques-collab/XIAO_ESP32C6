@@ -4,11 +4,14 @@
 
 O firmware atende comandos de texto em minúsculas na porta UDP **4210**,
 na rede Wi-Fi e no portal de configuração. Envie `ajuda` para obter a lista
-completa, com respostas JSON. Inclui GPS, posição, relógio, satélites, movimento,
+completa, com respostas em texto UTF-8, um campo por linha. Inclui GPS, posição, relógio, satélites, movimento,
 precisão, Wi-Fi, redes cadastradas, localidade, previsão, sistema, OTA,
 controle do OLED, LED e reinício. O serviço inicia automaticamente no loop.
 
 A lista completa e o exemplo de envio pelo PowerShell estão em [UDP.md](UDP.md).
+O comando `sistema` informa os percentuais de RAM e de espaço da aplicação
+livres. Use `protecao_tela_habilitar`, `protecao_tela_desabilitar` e
+`protecao_tela` para controlar e consultar a proteção de tela.
 Os controles são acessíveis aos dispositivos com acesso à porta UDP da placa.
 Compilação e testes de comunicação ficam por conta do usuário.
 
@@ -51,7 +54,7 @@ make usb PORT=COM5
 make ota PORT=192.168.1.50
 ```
 
-`JOBS` controla o número de tarefas paralelas da compilação (padrão: `2`),
+`JOBS` controla o número de tarefas paralelas da compilação (padrão: `1`),
 por exemplo `make compilar JOBS=4`. `make` apenas encaminha as ações para
 `firmware.ps1`. O script procura PlatformIO no `PATH` ou em
 `%USERPROFILE%\.platformio\penv\Scripts\platformio.exe`, instalado pela extensão.
@@ -85,6 +88,24 @@ Depois execute `pio pkg install -e seeed_xiao_esp32c6` e `pio run`.
 Isso reinstala o pacote usando a versão definida pela plataforma, sem apagar
 todos os pacotes nem alterar `platformio.ini`. Preserve a cópia de recuperação
 até confirmar que a compilação terminou com sucesso.
+
+Se o GCC informar `cannot find @...tmp....rsp: Invalid argument`, ele falhou
+ao abrir o arquivo de argumentos de um comando longo. O projeto usa
+`scripts/windows_response_files.py`, carregado pelo PlatformIO no Windows,
+para copiar esses argumentos para arquivos persistentes em
+`.pio/build/<ambiente>/response_files/` e passar seus caminhos com barras `/`.
+Cada arquivo tem nome derivado do alvo e do conteúdo, evitando colisões entre
+tarefas. Essa adaptação usa o TempFileMunge do SCons instalado pelo PlatformIO.
+O callback deve usar os nomes `target`, `source`, `env` e `for_signature`.
+Uma versão anterior usava `build_env`, fazendo o SCons imprimir
+`<SCons.Script.ProjectTempFileMunge object ...>` e tentar executar esse texto.
+Esse caso foi corrigido no script do projeto.
+Os arquivos ficam no diretório de build e são removidos ao limpar o ambiente.
+
+Após essa alteração, execute novamente `.\firmware.cmd compilar`. A falha
+informada ocorreu na compilação de um objeto do framework, antes do firmware
+final. Os avisos `_close`, `_read` e similares apareceram junto da falha do
+arquivo de argumentos e não confirmam um defeito nas funções do firmware.
 
 Se aparecer `Failed to obtain certifi path ... timed out after 5 seconds`,
 teste `& "$env:USERPROFILE\.platformio\penv\Scripts\python.exe" -c "import certifi; print(certifi.where())"`

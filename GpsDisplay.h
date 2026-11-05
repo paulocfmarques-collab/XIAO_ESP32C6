@@ -24,6 +24,9 @@ class GpsDisplay
     bool isReady() const { return ready_; }
     const char* pageName(const GpsReading& reading) const;
     bool selectPage(const String& name, const GpsReading& reading);
+    void setScreenSaverEnabled(bool enabled);
+    bool isScreenSaverEnabled() const { return screenSaverEnabled_; }
+    bool isScreenSaverActive() const;
 
   private:
     enum class Page : uint8_t
@@ -62,6 +65,7 @@ class GpsDisplay
     bool ready_ = false;
     bool splashDone_ = false;
     bool screenSaverActive_ = false;
+    bool screenSaverEnabled_ = true;
     bool displayOff_ = false;
     unsigned long startedAt_ = 0;
     unsigned long lastInteractionAt_ = 0;

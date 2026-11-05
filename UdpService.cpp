@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <ctime>
 #include <cstring>
+#include <esp_ota_ops.h>
 
 namespace
 {
@@ -11,8 +12,54 @@ const char* const COMMANDS[] = {
     "wifi", "redes", "localidade", "tempo", "consultar_localidade", "consultar_tempo", "sistema", "ota",
     "tela", "tela_ligar", "tela_desligar", "tela_proxima", "tela_relogio", "tela_posicao",
     "tela_movimento", "tela_busca", "tela_sem_dados", "tela_rede", "tela_localidade", "tela_tempo",
-    "led", "led_ligar", "led_desligar", "led_auto", "reiniciar"
+    "led", "led_ligar", "led_desligar", "led_auto", "reiniciar",
+    "protecao_tela", "protecao_tela_habilitar", "protecao_tela_desabilitar"
 };
+
+String textValue(String value)
+{
+    value.replace("\r", " ");
+    value.replace("\n", " ");
+    value.replace("\t", " ");
+    return value;
+}
+
+void appendTextField(String& reply, const String& label, JsonVariantConst value,
+                     const String& indent = "")
+{
+    String readableLabel = label;
+    readableLabel.replace('_', ' ');
+    reply += indent + readableLabel + ":";
+    if (value.is<JsonObjectConst>())
+    {
+        reply += '\n';
+        for (JsonPairConst field : value.as<JsonObjectConst>())
+            appendTextField(reply, field.key().c_str(), field.value(), indent + "  ");
+    }
+    else if (value.is<JsonArrayConst>())
+    {
+        JsonArrayConst items = value.as<JsonArrayConst>();
+        if (items.size() == 0)
+            reply += " indisponivel\n";
+        else
+        {
+            reply += '\n';
+            unsigned index = 1;
+            for (JsonVariantConst item : items)
+                appendTextField(reply, String(index++), item, indent + "  ");
+        }
+    }
+    else
+    {
+        String text;
+        if (value.isNull()) text = "indisponivel";
+        else if (value.is<bool>()) text = value.as<bool>() ? "sim" : "nao";
+        else text = textValue(value.as<String>());
+        if (text.isEmpty()) text = "indisponivel";
+        if (label == "resposta") text.replace('_', ' ');
+        reply += " " + text + '\n';
+    }
+}
 }
 
 UdpService::UdpService(GpsDisplay& display, StatusLed& led, WifiManager& wifi,
@@ -62,13 +109,13 @@ void UdpService::update(const GpsReading& gps)
     String reply;
     if (size >= static_cast<int>(sizeof(buffer)))
     {
-        reply = "{\"ok\":false,\"erro\":\"comando_longo\"}";
+        reply = "erro: comando longo, limite de 63 bytes\n";
     }
     else
     {
         int read = socket_.read(buffer, size);
         if (read != size || memchr(buffer, '\0', read) != nullptr)
-            reply = "{\"ok\":false,\"erro\":\"datagrama_invalido\"}";
+            reply = "erro: datagrama invalido\n";
         else
         {
             buffer[read] = '\0';
@@ -113,13 +160,31 @@ String UdpService::execute(const String& command, const GpsReading& gps)
     }
     else if (command == "sistema")
     {
+        uint32_t ramTotal = ESP.getHeapSize();
+        uint32_t ramFree = ESP.getFreeHeap();
+        uint32_t firmwareSize = ESP.getSketchSize();
+        const esp_partition_t* partition = esp_ota_get_running_partition();
         data["chip"] = ESP.getChipModel();
         data["cpu_mhz"] = ESP.getCpuFreqMHz();
         data["uptime_s"] = millis() / 1000;
-        data["heap_livre"] = ESP.getFreeHeap();
+        data["heap_livre"] = ramFree;
+        data["ram_total_bytes"] = ramTotal;
+        data["ram_livre_percentual"] = nullptr;
+        if (ramTotal > 0)
+            data["ram_livre_percentual"] = String(100.0 * ramFree / ramTotal, 1) + "%";
         data["heap_minimo"] = ESP.getMinFreeHeap();
         data["flash_bytes"] = ESP.getFlashChipSize();
-        data["firmware_bytes"] = ESP.getSketchSize();
+        data["firmware_bytes"] = firmwareSize;
+        data["flash_aplicacao_total_bytes"] = nullptr;
+        data["flash_aplicacao_livre_bytes"] = nullptr;
+        data["flash_aplicacao_livre_percentual"] = nullptr;
+        if (partition && partition->size > 0)
+        {
+            uint32_t free = firmwareSize < partition->size ? partition->size - firmwareSize : 0;
+            data["flash_aplicacao_total_bytes"] = partition->size;
+            data["flash_aplicacao_livre_bytes"] = free;
+            data["flash_aplicacao_livre_percentual"] = String(100.0 * free / partition->size, 1) + "%";
+        }
     }
     else if (command == "status")
     {
@@ -132,6 +197,8 @@ String UdpService::execute(const String& command, const GpsReading& gps)
         data["localidade_disponivel"] = locality_.reading().available;
         data["tempo_disponivel"] = weather_.reading().available;
         data["ota_disponivel"] = wifi_.otaAvailable();
+        data["protecao_tela_habilitada"] = display_.isScreenSaverEnabled();
+        data["protecao_tela_ativa"] = display_.isScreenSaverActive();
     }
     else if (command == "wifi")
     {
@@ -162,6 +229,13 @@ String UdpService::execute(const String& command, const GpsReading& gps)
         data["porta"] = 3232;
         data["senha"] = false;
     }
+    else if (command.startsWith("protecao_tela"))
+    {
+        if (command == "protecao_tela_habilitar") display_.setScreenSaverEnabled(true);
+        if (command == "protecao_tela_desabilitar") display_.setScreenSaverEnabled(false);
+        data["habilitada"] = display_.isScreenSaverEnabled();
+        data["ativa"] = display_.isScreenSaverActive();
+    }
     else if (command.startsWith("tela"))
     {
         data["disponivel"] = display_.isReady();
@@ -184,6 +258,8 @@ String UdpService::execute(const String& command, const GpsReading& gps)
         }
         data["ligada"] = display_.isReady() && !display_.isOff();
         data["pagina"] = display_.pageName(gps);
+        data["protecao_tela_habilitada"] = display_.isScreenSaverEnabled();
+        data["protecao_tela_ativa"] = display_.isScreenSaverActive();
     }
     else if (command.startsWith("led"))
     {
@@ -278,7 +354,19 @@ String UdpService::execute(const String& command, const GpsReading& gps)
         }
         data["fuso_horas"] = gps.utcOffsetHours;
     }
-    String reply;
-    serializeJson(data, reply);
+    if (!data["ok"].as<bool>())
+    {
+        String error = data["erro"].as<String>();
+        error.replace('_', ' ');
+        return "erro: " + error + '\n';
+    }
+    if (command == "ping") return "pong\n";
+    String reply = "ok: " + textValue(command) + '\n';
+    for (JsonPairConst field : data.as<JsonObjectConst>())
+    {
+        String label(field.key().c_str());
+        if (label != "ok" && label != "comando")
+            appendTextField(reply, label, field.value());
+    }
     return reply;
 }

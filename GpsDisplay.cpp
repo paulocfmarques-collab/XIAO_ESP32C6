@@ -104,7 +104,7 @@ void GpsDisplay::update(const GpsReading& reading, const LocalityReading& locali
     }
 
     display_.clearDisplay();
-    if (now - lastInteractionAt_ >= SCREEN_SAVER_TIMEOUT_MS)
+    if (screenSaverEnabled_ && now - lastInteractionAt_ >= SCREEN_SAVER_TIMEOUT_MS)
     {
         screenSaverActive_ = true;
         drawScreenSaver(now - lastInteractionAt_ - SCREEN_SAVER_TIMEOUT_MS);
@@ -451,6 +451,20 @@ bool GpsDisplay::isOff() const
     return displayOff_;
 }
 
+void GpsDisplay::setScreenSaverEnabled(bool enabled)
+{
+    screenSaverEnabled_ = enabled;
+    screenSaverActive_ = false;
+    lastInteractionAt_ = millis();
+    lastRefreshAt_ = lastInteractionAt_ - REFRESH_INTERVAL_MS;
+}
+
+bool GpsDisplay::isScreenSaverActive() const
+{
+    return ready_ && !displayOff_ && splashDone_ && screenSaverEnabled_ &&
+           millis() - lastInteractionAt_ >= SCREEN_SAVER_TIMEOUT_MS;
+}
+
 const char* GpsDisplay::pageName(const GpsReading& reading) const
 {
     switch (currentPage(reading))
@@ -492,7 +506,8 @@ void GpsDisplay::nextPage(const GpsReading& reading)
     }
 
     unsigned long now = millis();
-    bool waking = screenSaverActive_ || now - lastInteractionAt_ >= SCREEN_SAVER_TIMEOUT_MS;
+    bool waking = screenSaverEnabled_ &&
+                  (screenSaverActive_ || now - lastInteractionAt_ >= SCREEN_SAVER_TIMEOUT_MS);
     lastInteractionAt_ = now;
     lastRefreshAt_ = now - REFRESH_INTERVAL_MS;
     if (waking)
@@ -543,7 +558,7 @@ GpsDisplay::Page GpsDisplay::currentPage(const GpsReading& reading) const
 bool GpsDisplay::wantsLocality(const GpsReading& reading) const
 {
     return ready_ && splashDone_ && !displayOff_ &&
-           millis() - lastInteractionAt_ < SCREEN_SAVER_TIMEOUT_MS &&
+           (!screenSaverEnabled_ || millis() - lastInteractionAt_ < SCREEN_SAVER_TIMEOUT_MS) &&
            currentPage(reading) == Page::Locality;
 }
 
@@ -601,7 +616,7 @@ void GpsDisplay::drawLocality(const GpsReading& reading, const LocalityReading& 
 bool GpsDisplay::wantsWeather(const GpsReading& reading) const
 {
     return ready_ && splashDone_ && !displayOff_ &&
-           millis() - lastInteractionAt_ < SCREEN_SAVER_TIMEOUT_MS &&
+           (!screenSaverEnabled_ || millis() - lastInteractionAt_ < SCREEN_SAVER_TIMEOUT_MS) &&
            currentPage(reading) == Page::Weather;
 }
 

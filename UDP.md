@@ -5,12 +5,31 @@ da placa. Use o IP mostrado em REDE WI-FI ou `192.168.4.1` quando estiver
 conectado ao portal XIAO_ESP32C6_CONFIG. O serviço acompanha as mudanças de IP
 e reabre o socket ao recuperar a rede.
 
-A resposta é um objeto JSON enviado ao IP e à porta de origem. Contém `ok`
-e `comando`, além dos dados solicitados. Comandos desconhecidos, maiúsculas
+A resposta é texto UTF-8 enviado ao IP e à porta de origem, com um campo por
+linha. Consultas e confirmações começam com `ok: comando`; erros começam com
+`erro: motivo`. `ping` responde apenas `pong`. Comandos desconhecidos, maiúsculas
 e parâmetros extras retornam erro. Espaços nas pontas e quebras de linha
 finais são aceitos. O limite é de 63 bytes por datagrama, antes de remover
-os espaços. Nomes de comando e chaves JSON estão em minúsculas. Valores como
+os espaços. Comandos e rótulos estão em minúsculas. Valores como
 SSID, cidade e modelo da placa preservam sua grafia.
+
+Os rótulos separam palavras com espaços. Estados booleanos são escritos como
+`sim` e `nao`; campos ausentes ou inválidos aparecem como `indisponivel`.
+Listas de redes e dias de previsão usam itens numerados e recuo.
+
+Exemplo de resposta ao comando `led_ligar`:
+
+```text
+ok: led_ligar
+modo: ligado
+ligado: sim
+```
+
+Exemplo de erro ao selecionar uma tela indisponível:
+
+```text
+erro: pagina indisponivel no estado atual do gps
+```
 
 ## Consultas
 
@@ -29,14 +48,20 @@ SSID, cidade e modelo da placa preservam sua grafia.
 | `redes` | Os cinco slots de SSID cadastrados, sem expor senhas. |
 | `localidade` | Resultado armazenado de cidade, estado e país, com disponibilidade e falha. |
 | `tempo` | Previsão armazenada de três dias, idade da consulta e condição de dados anteriores. |
-| `sistema` | Chip, CPU, tempo ligado, memória livre/mínima, flash e tamanho do firmware. |
+| `sistema` | Chip, CPU, tempo ligado, RAM livre/mínima, flash e firmware, com percentuais livres de RAM e da partição de aplicação. |
 | `ota` | Disponibilidade do ArduinoOTA, hostname, porta 3232 e indicação de ausência de senha. |
 | `tela` | Disponibilidade do OLED, estado ligado e página selecionada. |
 | `led` | Modo e estado atual do LED externo D8. |
 
-Campos GPS inválidos retornam `null`. Latitude e longitude só são publicadas
+Campos GPS inválidos retornam `indisponivel`. Latitude e longitude só são publicadas
 com fix confiável e dados recebidos. Hora e data podem continuar disponíveis
 pelo relógio sincronizado anteriormente com o GPS.
+
+Em `sistema`, `ram livre percentual` usa o heap total disponível em execução
+como base. `flash aplicacao livre percentual` usa a capacidade real da partição
+da aplicação em execução menos o tamanho do firmware. A flash física total
+continua em `flash bytes`. A partição OTA reserva, o SPIFFS e o NVS têm seus
+próprios espaços. Percentuais são exibidos com uma casa decimal e `%`.
 
 ## Consultas pela internet
 
@@ -73,11 +98,18 @@ continuam sendo executadas uma por vez.
 | `tela_rede` | Abre a página Wi-Fi. |
 | `tela_localidade` | Abre a página de localidade. |
 | `tela_tempo` | Abre a previsão. |
+| `protecao_tela` | Consulta se a proteção está habilitada e se está ativa agora. |
+| `protecao_tela_habilitar` | Habilita a proteção e reinicia a contagem de 60 segundos de inatividade. |
+| `protecao_tela_desabilitar` | Desabilita a proteção e retorna da animação para a página selecionada. |
+
+Essa configuração vale até o reinício, quando a proteção volta habilitada.
+O desligamento manual pelo botão ou por `tela_desligar` continua sendo
+respeitado. `status` e `tela` também informam o estado da proteção.
 
 A seleção de página liga o painel, desperta a proteção de tela e encerra a
 tela inicial. Páginas indisponíveis no estado atual do GPS retornam
-`pagina_indisponivel_no_estado_atual_do_gps`. OLED não inicializado retorna
-`oled_indisponivel`. O tempo normal para ativar a proteção de tela continua
+`erro: pagina indisponivel no estado atual do gps`. OLED não inicializado retorna
+`erro: oled indisponivel`. O tempo normal para ativar a proteção de tela continua
 sendo aplicado depois do comando. `pagina` descreve a página selecionada,
 inclusive quando o painel está desligado ou na proteção de tela.
 

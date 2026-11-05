@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := ajuda
 
 POWERSHELL ?= powershell.exe
-JOBS ?= 2
+JOBS ?= 1
 PORT ?=
 
 .PHONY: ajuda preparar compilar portas usb ota

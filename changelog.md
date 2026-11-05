@@ -3,6 +3,45 @@
 Histórico das alterações do projeto, organizado da mais recente para a mais antiga.
 As mudanças abaixo ainda não possuem uma versão de lançamento.
 
+## 2026-11-04 — Assinatura do gerador de arquivos de argumentos
+
+- Corrigido o parâmetro do callback ProjectTempFileMunge para `env`, conforme
+  a assinatura reconhecida pelo SCons. O nome anterior, `build_env`, fazia
+  o SCons tratar o objeto Python como texto de comando e falhar na sintaxe.
+- Mantida a geração de arquivos de argumentos persistentes para o GCC.
+- Compilação e gravação na COM23 pendentes de confirmação pelo usuário.
+
+## 2026-11-04 — Arquivos de argumentos do GCC no Windows
+
+- Adicionado pre-script do PlatformIO para preservar arquivos de resposta
+  do GCC no diretório de build, com caminhos em barras `/` e nomes por alvo
+  e conteúdo, em resposta ao erro `cannot find @...rsp: Invalid argument`.
+- Adaptação aplicada aos ambientes USB e OTA no Windows, usando TempFileMunge
+  do SCons e preservando o conteúdo dos argumentos gerados pela plataforma.
+- README atualizado com diagnóstico e comando para repetir a compilação.
+- Correção pendente de confirmação na compilação pelo usuário, conforme combinado.
+
+## 2026-11-04 — Memória livre e controle da proteção de tela
+
+- Comando sistema informa RAM total e percentual livre do heap, além de
+  capacidade, bytes e percentual livres da partição de aplicação em execução.
+- Adicionados protecao_tela, protecao_tela_habilitar e protecao_tela_desabilitar,
+  totalizando 37 comandos UDP. Status e tela também informam essa configuração.
+- Desabilitar a proteção restaura a página, respeitando o painel desligado
+  manualmente. Habilitar reinicia a contagem de 60 segundos de inatividade.
+- Configuração da proteção mantida em RAM até o reinício.
+- README e UDP.md atualizados. Compilação e testes a cargo do usuário.
+
+## 2026-11-04 — Respostas UDP em texto
+
+- Respostas UDP passam a usar texto UTF-8 com campos por linha, listas
+  numeradas e recuo para redes e dias de previsão.
+- Confirmações usam `ok`, erros usam `erro`, estados usam `sim`/`nao`
+  e dados ausentes usam `indisponivel`. O comando ping responde `pong`.
+- Convertidos também erros de datagrama inválido e comando muito longo.
+- README e UDP.md atualizados com formato e exemplos.
+- Compilação e testes permanecem a cargo do usuário.
+
 ## 2026-11-04 — Comandos UDP em minúsculas
 
 - Adicionado servidor UDP na porta 4210, disponível por Wi-Fi ou portal,
